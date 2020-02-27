@@ -25,8 +25,7 @@ var (
 
 var ctx context.Context = context.Background()
 
-//InitConfig creates the google storage client from the
-//application default credentials or from an access_token
+//InitConfig creates the google storage client that is used from the apt package
 func InitConfig() {
 	client, err := getClient()
 	if err != nil {
@@ -44,8 +43,13 @@ func InitConfig() {
 
 }
 
+/*Returns an authenticated http client based on a different set of GCP
+auth methods, cascading in the following order:
+if access_token (bearer) is present in /etc/apt/gcs_access_token use it,
+else if Service Account JSON key is present in /etc/apt/gcs_sa_json use it,
+else try to get Application Default credentials https://github.com/golang/oauth2/blob/master/google/default.go
+*/
 func getClient() (client *http.Client, err error) {
-
 	switch {
 	case fileExists(accessTokenPath):
 		client, err = clientFromAccessToken(accessTokenPath)
@@ -66,6 +70,7 @@ func getClient() (client *http.Client, err error) {
 	return client, err
 }
 
+//Creates an http client authenticated using a GCS access_token (gcloud auth print-access-token)
 func clientFromAccessToken(accessTokenPath string) (client *http.Client, err error) {
 	tokenBytes, err := ioutil.ReadFile(accessTokenPath)
 	if err != nil {
@@ -78,6 +83,7 @@ func clientFromAccessToken(accessTokenPath string) (client *http.Client, err err
 	return oauth2.NewClient(ctx, tokenSource), err
 }
 
+//Creates an http client authenticated using a GCS Service account JSON key
 func clientFromServiceAccount(serviceAccountJSONPath string) (client *http.Client, err error) {
 	JSONBytes, err := ioutil.ReadFile(serviceAccountJSONPath)
 	if err != nil {
@@ -88,6 +94,7 @@ func clientFromServiceAccount(serviceAccountJSONPath string) (client *http.Clien
 	return oauth2.NewClient(ctx, tokenSource), err
 }
 
+//Check if a file exists
 func fileExists(filename string) bool {
     info, err := os.Stat(filename)
     if os.IsNotExist(err) {
